@@ -16,20 +16,19 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from functools import partial
 
 import datasets
 import torch
 import transformers
 from datasets import load_dataset
-from peft import LoraConfig, get_peft_model
-from transformers import set_seed, AutoModelForCausalLM
+from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 
 from open_r1.configs import GRPOConfig
-from open_r1.rewards import accuracy_reward, cosine_scaled_reward, format_reward, reasoning_steps_reward
+from open_r1.rewards import accuracy_reward, format_reward, get_cosine_scaled_reward, reasoning_steps_reward
 from open_r1.utils.callbacks import get_callbacks
 from trl import GRPOTrainer, ModelConfig, ScriptArguments, TrlParser, get_peft_config
+
 
 logger = logging.getLogger(__name__)
 
@@ -129,20 +128,17 @@ def main(script_args, training_args, model_args):
     dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
 
     # Get reward functions
-    reward_func_cosine = partial(
-        cosine_scaled_reward,
-        min_value_wrong=script_args.cosine_min_value_wrong,
-        max_value_wrong=script_args.cosine_max_value_wrong,
-        min_value_correct=script_args.cosine_min_value_correct,
-        max_value_correct=script_args.cosine_max_value_correct,
-        max_len=script_args.cosine_max_len,
-    )
-    reward_func_cosine.__name__ = cosine_scaled_reward.__name__
     REWARD_FUNCS_REGISTRY = {
         "accuracy": accuracy_reward,
         "format": format_reward,
         "reasoning_steps": reasoning_steps_reward,
-        "cosine":reward_func_cosine,
+        "cosine": get_cosine_scaled_reward(
+            min_value_wrong=script_args.cosine_min_value_wrong,
+            max_value_wrong=script_args.cosine_max_value_wrong,
+            min_value_correct=script_args.cosine_min_value_correct,
+            max_value_correct=script_args.cosine_max_value_correct,
+            max_len=script_args.cosine_max_len,
+        ),
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
@@ -159,7 +155,6 @@ def main(script_args, training_args, model_args):
     for split in dataset:
         if "messages" in dataset[split].column_names:
             dataset[split] = dataset[split].remove_columns("messages")
-    logger.info(dataset)
 
     logger.info("*** Initializing model kwargs ***")
     torch_dtype = (
@@ -172,42 +167,13 @@ def main(script_args, training_args, model_args):
         torch_dtype=torch_dtype,
         use_cache=False if training_args.gradient_checkpointing else True,
     )
-    # training_args.model_init_kwargs = model_kwargs
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        # load_in_8bit=True,
-        # torch_dtype=torch.float16,
-        torch_dtype=torch.bfloat16,
-        # device_map="cuda",  # "auto"
-    )
-
-    lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
-        target_modules=[
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "o_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj",
-        ],
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, lora_config)
-    model.enable_input_require_grads()
-    model.print_trainable_parameters()
+    training_args.model_init_kwargs = model_kwargs
 
     #############################
     # Initialize the GRPO trainer
     #############################
-    logger.info("*** GRPOTrainer ***")
     trainer = GRPOTrainer(
-        model=model,
+        model=model_args.model_name_or_path,
         reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
@@ -225,7 +191,6 @@ def main(script_args, training_args, model_args):
         checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint
-    logger.info(f"checkpoint : {checkpoint}")
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
     metrics = train_result.metrics
     metrics["train_samples"] = len(dataset[script_args.dataset_train_split])

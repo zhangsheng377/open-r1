@@ -1,6 +1,6 @@
 import unittest
 
-from open_r1.rewards import accuracy_reward, cosine_scaled_reward, format_reward, reasoning_steps_reward
+from open_r1.rewards import accuracy_reward, format_reward, get_cosine_scaled_reward, reasoning_steps_reward
 
 
 class TestRewards(unittest.TestCase):
@@ -94,8 +94,15 @@ class TestRewards(unittest.TestCase):
             padded_content = content + " " * (content_len - len(content))
             completion = [[{"content": padded_content}]]
 
-            rewards = cosine_scaled_reward(completion, [solution], **test_params)
+            rewards = get_cosine_scaled_reward(**test_params)(completion, [solution])
             self.assertAlmostEqual(rewards[0], expected_reward, places=2)
+
+    def test_format_reward_specific_multiline(self):
+        """Test format_reward with a specific multiline input."""
+        inputs = "<think>\nI will count each distinct object in the image:\n1. Purple scooter\n2. Red bicycle\n3. Green motorcycle\n4. Gray sedan\n5. Yellow school bus\n6. Small green double-decker bus\n7. Small red car\n8. Small purple car\n9. Small gray dirt bike\n\nThere are 9 distinct objects in total.\n</think>\n<answer>9</answer>"
+        completion = [[{"content": inputs}]]
+        rewards = format_reward(completion)
+        self.assertEqual(rewards[0], 1.0)
 
 
 if __name__ == "__main__":
