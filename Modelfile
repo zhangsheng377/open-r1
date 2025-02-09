@@ -1,0 +1,2 @@
+FROM /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B
+ADAPTER /mnt/nfs/zsd_server/codes/open-r1/output/Qwen2.5-7B-Open-R1-GRPO
