@@ -34,7 +34,8 @@ class ChatBot:
         self.tokenizer = tokenizer
         self.model = model
 
-    def _run_conversation(self, messages: Union[List[Dict[str, str]], str], temperature, stream, stop):
+    def _run_conversation(self, messages: Union[List[Dict[str, str]], str], temperature, stream, stop,
+                          skip_special_tokens):
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
         chat_tokens = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt",
@@ -74,33 +75,40 @@ class ChatBot:
             for new_text in streamer:
                 yield new_text
         else:
-            outputs = self.model.generate(**generate_kwargs)
+            outputs = self.model.generate(**generate_kwargs, skip_special_tokens=skip_special_tokens)
             outputs_token = []
             for chat_token, output in zip(chat_tokens["input_ids"], outputs):
                 outputs_token.append(output[len(chat_token):])
-            outputs = self.tokenizer.batch_decode(outputs_token, skip_prompt=True, skip_special_tokens=True)
+            outputs = self.tokenizer.batch_decode(outputs_token, skip_prompt=True,
+                                                  skip_special_tokens=skip_special_tokens)
             yield outputs[0]
 
-    def _chat(self, messages: Union[List[Dict[str, str]], str], temperature, stop):
+    def _chat(self, messages: Union[List[Dict[str, str]], str], temperature, stop, skip_special_tokens):
         result = ""
-        for token in self._run_conversation(messages=messages, temperature=temperature, stream=False, stop=stop):
+        for token in self._run_conversation(messages=messages, temperature=temperature, stream=False, stop=stop,
+                                            skip_special_tokens=skip_special_tokens):
             result += token
         return result
 
-    def _stream_chat(self, messages: Union[List[Dict[str, str]], str], temperature, stop):
-        response = self._run_conversation(messages=messages, temperature=temperature, stream=True, stop=stop)
+    def _stream_chat(self, messages: Union[List[Dict[str, str]], str], temperature, stop, skip_special_tokens):
+        response = self._run_conversation(messages=messages, temperature=temperature, stream=True, stop=stop,
+                                          skip_special_tokens=skip_special_tokens)
         for token in response:
             yield token
 
-    def chat(self, messages: Union[List[Dict[str, str]], str], temperature=0.6, stop=None, stream=False):
+    def chat(self, messages: Union[List[Dict[str, str]], str], temperature=0.6, stop=None, stream=False,
+             skip_special_tokens=True):
         if not stream:
-            return self._chat(messages=messages, temperature=temperature, stop=stop)
+            return self._chat(messages=messages, temperature=temperature, stop=stop,
+                              skip_special_tokens=skip_special_tokens)
         else:
-            return self._stream_chat(messages=messages, temperature=temperature, stop=stop)
+            return self._stream_chat(messages=messages, temperature=temperature, stop=stop,
+                                     skip_special_tokens=skip_special_tokens)
 
 
 if __name__ == "__main__":
     from peft import get_peft_model, PeftModel
+
     MODEL_PATH = '/mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B'
     LORA_PATH = '/mnt/nfs/zsd_server/codes/open-r1/output/Qwen2.5-7B-Open-R1-GRPO'
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
@@ -114,7 +122,7 @@ if __name__ == "__main__":
     chatbot = ChatBot(model=model, tokenizer=tokenizer)
 
     message = "hello."
-    for token in chatbot.chat(messages=message, stream=True):
+    for token in chatbot.chat(messages=message, stream=True, skip_special_tokens=False):
         print(token, end='', flush=True)
         # sleep(0.1)
     print('\n')

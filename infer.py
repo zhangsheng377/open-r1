@@ -15,12 +15,12 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float16,
     device_map="auto",
 )
-# model = PeftModel.from_pretrained(model, LORA_PATH)
+model = PeftModel.from_pretrained(model, LORA_PATH)
 
 chatbot = ChatBot(model=model, tokenizer=tokenizer)
 
 message = f"""You will be given a problem. Please reason step by step, and put your final answer within \\boxed{{}}:\n{query}"""
-for token in chatbot.chat(messages=message, stream=True):
+for token in chatbot.chat(messages=message, stream=True, skip_special_tokens=False):
     print(token, end='', flush=True)
     # sleep(0.1)
 print('\n')
