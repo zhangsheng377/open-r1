@@ -76,6 +76,12 @@ if __name__ == "__main__":
         help="HuggingFace dataset to load",
     )
     parser.add_argument(
+        "--hf-dataset-datafiles",
+        type=str,
+        required=False,
+        help="HuggingFace dataset files to load",
+    )
+    parser.add_argument(
         "--hf-dataset-config",
         type=str,
         required=False,
@@ -204,5 +210,6 @@ if __name__ == "__main__":
 
     if args.hf_output_dataset:
         print(f"Pushing resulting dataset to '{args.hf_output_dataset}'...")
-        distiset.push_to_hub(args.hf_output_dataset, private=args.private)
+        # distiset.push_to_hub(args.hf_output_dataset, private=args.private)
+        distiset.to_json(args.hf_output_dataset)
         print("Dataset pushed!")

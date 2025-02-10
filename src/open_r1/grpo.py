@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from rich import print
+import rich.traceback
+
+# 启用彩色堆栈跟踪
+rich.traceback.install()
+
 import logging
 import os
 import sys
