@@ -6,11 +6,17 @@ import re
 from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
 
+import wandb
+
 
 def accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
+    print(f"accuracy_reward contents : {contents}")
+    wandb.log({
+        "contents": contents[0] if contents else '',
+    })
     for content, sol in zip(contents, solution):
         gold_parsed = parse(
             sol,
