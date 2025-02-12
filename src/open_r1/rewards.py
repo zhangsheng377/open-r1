@@ -7,6 +7,62 @@ from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
 
 import wandb
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
+def extract_answer_from_output(output):
+    # 使用 re.finditer() 查找所有匹配项
+    matches = list(re.finditer(r'<answer>(.*?)</answer>', output, re.DOTALL))
+    if matches:
+        # 获取最后一个匹配项的内容
+        return matches[-1].group(1).strip()  # group(1) 是捕获的第一个组
+    return None
+
+
+def extract_answer_from_label(label):
+    # 使用 re.finditer() 查找所有匹配项
+    matches = list(re.finditer(r'\\boxed{(.*?)}', label, re.DOTALL))
+    if matches:
+        # 获取最后一个匹配项的内容
+        return matches[-1].group(1).strip()  # group(1) 是捕获的第一个组
+    return None
+
+
+def compute_cosine_similarity(text1, text2):
+    try:
+        vectorizer = CountVectorizer().fit_transform([text1, text2])
+        vectors = vectorizer.toarray()
+        return cosine_similarity(vectors)[0, 1]
+    except:
+        return 0
+
+
+def reward_function(model_output, label, similarity_threshold=0.8):
+    model_answer = extract_answer_from_output(model_output)
+    reference_answer = extract_answer_from_label(label)
+    if model_answer and reference_answer:
+        # 检查模型输出是否包含参考答案
+        if reference_answer in model_answer:
+            return 1  # 正奖励
+        similarity = compute_cosine_similarity(model_answer, reference_answer)
+        if similarity >= similarity_threshold:
+            return 1  # 正奖励
+    return 0
+
+
+def my_accuracy_reward(completions, solution, **kwargs):
+    """Reward function that checks if the completion is the same as the ground truth."""
+    contents = [completion[0]["content"] for completion in completions]
+    rewards = []
+    print(f"accuracy_reward contents : {contents}")
+    wandb.log({
+        "contents": contents[0] if contents else '',
+    })
+    for content, sol in zip(contents, solution):
+        reward = reward_function(model_output=content, label=sol)
+        rewards.append(reward)
+    return rewards
 
 
 def accuracy_reward(completions, solution, **kwargs):
@@ -80,12 +136,63 @@ def reasoning_steps_reward(completions, **kwargs):
     return [min(1.0, count / 3) for count in matches]
 
 
+def my_get_cosine_scaled_reward(
+        min_value_wrong: float = -1.0,
+        max_value_wrong: float = -0.5,
+        min_value_correct: float = 0.5,
+        max_value_correct: float = 1.0,
+        max_len: int = 1000,
+):
+    def cosine_scaled_reward(completions, solution, **kwargs):
+        """Reward function that scales based on completion length using a cosine schedule.
+
+        Shorter correct solutions are rewarded more than longer ones.
+        Longer incorrect solutions are penalized less than shorter ones.
+
+        Args:
+            completions: List of model completions
+            solution: List of ground truth solutions
+
+        This function is parameterized by the following arguments:
+            min_value_wrong: Minimum reward for wrong answers
+            max_value_wrong: Maximum reward for wrong answers
+            min_value_correct: Minimum reward for correct answers
+            max_value_correct: Maximum reward for correct answers
+            max_len: Maximum length for scaling
+        """
+        contents = [completion[0]["content"] for completion in completions]
+        rewards = []
+
+        for content, sol in zip(contents, solution):
+            is_correct = reward_function(model_output=content, label=sol)
+            gen_len = len(content)
+
+            # Apply cosine scaling based on length
+            progress = gen_len / max_len
+            cosine = math.cos(progress * math.pi)
+
+            if is_correct:
+                min_value = min_value_correct
+                max_value = max_value_correct
+            else:
+                # Swap min/max for incorrect answers
+                min_value = max_value_wrong
+                max_value = min_value_wrong
+
+            reward = min_value + 0.5 * (max_value - min_value) * (1.0 + cosine)
+            rewards.append(float(reward))
+
+        return rewards
+
+    return cosine_scaled_reward
+
+
 def get_cosine_scaled_reward(
-    min_value_wrong: float = -1.0,
-    max_value_wrong: float = -0.5,
-    min_value_correct: float = 0.5,
-    max_value_correct: float = 1.0,
-    max_len: int = 1000,
+        min_value_wrong: float = -1.0,
+        max_value_wrong: float = -0.5,
+        min_value_correct: float = 0.5,
+        max_value_correct: float = 1.0,
+        max_len: int = 1000,
 ):
     def cosine_scaled_reward(completions, solution, **kwargs):
         """Reward function that scales based on completion length using a cosine schedule.

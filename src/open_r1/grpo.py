@@ -37,11 +37,12 @@ from open_r1.rewards import (
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
     reasoning_steps_reward,
+    my_accuracy_reward,
+    my_get_cosine_scaled_reward,
 )
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.logging import init_wandb_training
 from trl import GRPOTrainer, ModelConfig, ScriptArguments, TrlParser, get_peft_config
-
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +104,17 @@ class GRPOScriptArguments(ScriptArguments):
     )
 
 
+# SYSTEM_PROMPT = (
+#     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
+#     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
+#     "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
+#     "<think> reasoning process here </think><answer> answer here </answer>"
+# )
 SYSTEM_PROMPT = (
     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
-    "<think> reasoning process here </think><answer> answer here </answer>"
+    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, and put your final answer within \\boxed{}, respectively, i.e., "
+    "<think> reasoning process here </think><answer> \\boxed{ answer here } </answer>"
 )
 
 
@@ -154,10 +161,10 @@ def main(script_args, training_args, model_args):
 
     # Get reward functions
     REWARD_FUNCS_REGISTRY = {
-        "accuracy": accuracy_reward,
+        "accuracy": my_accuracy_reward,
         "format": format_reward,
-        "reasoning_steps": reasoning_steps_reward,
-        "cosine": get_cosine_scaled_reward(
+        # "reasoning_steps": reasoning_steps_reward,
+        "cosine": my_get_cosine_scaled_reward(
             min_value_wrong=script_args.cosine_min_value_wrong,
             max_value_wrong=script_args.cosine_max_value_wrong,
             min_value_correct=script_args.cosine_min_value_correct,
