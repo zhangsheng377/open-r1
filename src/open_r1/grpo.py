@@ -74,7 +74,7 @@ class GRPOScriptArguments(ScriptArguments):
         },
     )
     cosine_min_value_wrong: float = field(
-        default=0.0,
+        default=-1.0,
         metadata={"help": "Minimum reward for wrong answers"},
     )
     cosine_max_value_wrong: float = field(
@@ -104,18 +104,18 @@ class GRPOScriptArguments(ScriptArguments):
     )
 
 
-# SYSTEM_PROMPT = (
-#     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
-#     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-#     "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
-#     "<think> reasoning process here </think><answer> answer here </answer>"
-# )
 SYSTEM_PROMPT = (
     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, and put your final answer within \\boxed{}, respectively, i.e., "
-    "<think> reasoning process here </think><answer> \\boxed{ answer here } </answer>"
+    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
+    "<think> reasoning process here </think><answer> answer here </answer>"
 )
+# SYSTEM_PROMPT = (
+#     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
+#     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
+#     "process and answer are enclosed within <think> </think> and <answer> </answer> tags, and put your final answer within \\boxed{}, respectively, i.e., "
+#     "<think> reasoning process here </think><answer> \\boxed{ answer here } </answer>"
+# )
 
 
 def main(script_args, training_args, model_args):

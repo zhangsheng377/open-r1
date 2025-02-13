@@ -174,6 +174,7 @@ def my_get_cosine_scaled_reward(
             if is_correct:
                 min_value = min_value_correct
                 max_value = max_value_correct
+                cosine = -cosine
             else:
                 # Swap min/max for incorrect answers
                 min_value = max_value_wrong
