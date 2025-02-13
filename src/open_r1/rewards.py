@@ -11,6 +11,8 @@ import wandb
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+CONTENT_RECORDS = []
+
 
 def extract_answer_from_output(output):
     # 使用 re.finditer() 查找所有匹配项
@@ -57,9 +59,8 @@ def my_accuracy_reward(completions, solution, **kwargs):
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
     print(f"accuracy_reward contents : {contents}")
-    wandb.log({
-        "contents": contents[0] if contents else '',
-    })
+    CONTENT_RECORDS.append(contents[0] if contents else '')
+    wandb.log({"contents": CONTENT_RECORDS, })
     for content, sol in zip(contents, solution):
         reward = reward_function(model_output=content, label=sol)
         rewards.append(reward)
@@ -208,6 +209,31 @@ def len_reward(completions: list[Dict[str, str]], solutions: list[str], **kwargs
         rewards.append(float(reward))
 
     return rewards
+
+
+def my_length_reward(
+        target_len: int = 768,
+):
+    def _length_reward(completions, solution, **kwargs):
+        contents = [completion[0]["content"] for completion in completions]
+        rewards = []
+
+        for content, sol in zip(contents, solution):
+            gen_len = len(content)
+            progress = gen_len / target_len if gen_len < target_len else 1.0
+
+            x = progress
+            # reward = x * (x * (x - 3) + 3)
+            reward = x * (2 - x)
+
+            is_correct = reward_function(model_output=content, label=sol)
+            if not is_correct:
+                reward = reward / 2 - 1
+
+            rewards.append(float(reward))
+        return rewards
+
+    return _length_reward
 
 
 def my_get_cosine_scaled_reward(

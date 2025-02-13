@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import wandb
 from rich import print
 import rich.traceback
 
@@ -21,7 +21,7 @@ rich.traceback.install()
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 import datasets
 import torch
@@ -39,7 +39,7 @@ from open_r1.rewards import (
     len_reward,
     reasoning_steps_reward,
     my_accuracy_reward,
-    my_get_cosine_scaled_reward,
+    my_get_cosine_scaled_reward, my_length_reward,
 )
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
@@ -103,6 +103,10 @@ class GRPOScriptArguments(ScriptArguments):
         default=-1.0,
         metadata={"help": "Maximum (negative) penalty for for repetition penalty reward"},
     )
+    target_len: int = field(
+        default=768,
+        metadata={"help": "Target length for length reward"},
+    )
 
 
 SYSTEM_PROMPT = (
@@ -111,6 +115,8 @@ SYSTEM_PROMPT = (
     "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
     "<think> reasoning process here </think><answer> answer here </answer>"
 )
+
+
 # SYSTEM_PROMPT = (
 #     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
 #     "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
@@ -176,7 +182,8 @@ def main(script_args, training_args, model_args):
             ngram_size=script_args.repetition_n_grams,
             max_penalty=script_args.repetition_max_penalty,
         ),
-        "length": len_reward,
+        # "length": len_reward,
+        "length": my_length_reward(target_len=script_args.target_len),
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
@@ -275,4 +282,6 @@ def main(script_args, training_args, model_args):
 if __name__ == "__main__":
     parser = TrlParser((GRPOScriptArguments, GRPOConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_and_config()
+    wandb.init(project=training_args.wandb_project, name=training_args.run_name,
+               config={**asdict(script_args), **asdict(training_args), **asdict(model_args)})
     main(script_args, training_args, model_args)

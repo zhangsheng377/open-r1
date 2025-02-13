@@ -9,7 +9,7 @@ lora_alpha: 128
 lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 
 # Data training arguments
-dataset_name: data/numina-deepseek-r1-qwen-7b
+dataset_name: data/NuminaMath-TIR/data
 dataset_configs:
 - all
 # Num processes is less by 1 as vLLM is using 1 GPU
@@ -34,21 +34,21 @@ logging_strategy: steps
 lr_scheduler_type: cosine
 max_prompt_length: 512
 max_completion_length: 1024
-max_steps: -1
+max_steps: 500
 num_generations: 2
-num_train_epochs: 20
+num_train_epochs: 2
 output_dir: output/Qwen2.5-7B-Open-R1-GRPO
 overwrite_output_dir: true
 per_device_eval_batch_size: 2
 per_device_train_batch_size: 2
-#reward_funcs: [accuracy, format, reasoning_steps, cosine, repetition_penalty]
-reward_funcs: [accuracy, format, cosine]
+#reward_funcs: [accuracy, format, reasoning_steps, cosine, repetition_penalty, length]
+reward_funcs: [accuracy, format, length]
 push_to_hub: false
 report_to:
 - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: Qwen2.5-7B-OpenR1_demo_ddp
+run_name: 自定义length_reward+NuminaMathTIR
 save_strategy: "no"
 seed: 42
-warmup_ratio: 0.01
+warmup_ratio: 0.02
