@@ -36,12 +36,13 @@ from open_r1.rewards import (
     format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
+    len_reward,
     reasoning_steps_reward,
     my_accuracy_reward,
     my_get_cosine_scaled_reward,
 )
 from open_r1.utils.callbacks import get_callbacks
-from open_r1.utils.logging import init_wandb_training
+from open_r1.utils.wandb_logging import init_wandb_training
 from trl import GRPOTrainer, ModelConfig, ScriptArguments, TrlParser, get_peft_config
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class GRPOScriptArguments(ScriptArguments):
 
     Args:
         reward_funcs (`list[str]`):
-            List of reward functions. Possible values: 'accuracy', 'format', 'reasoning_steps', 'cosine', 'repetition_penalty'.
+            List of reward functions. Possible values: 'accuracy', 'format', 'reasoning_steps', 'cosine', 'repetition_penalty', 'length'.
         cosine_min_value_wrong (`float`):
             Minimum reward for cosine scaling for wrong answers.
         cosine_max_value_wrong (`float`):
@@ -70,7 +71,7 @@ class GRPOScriptArguments(ScriptArguments):
     reward_funcs: list[str] = field(
         default_factory=lambda: ["accuracy", "format"],
         metadata={
-            "help": "List of reward functions. Possible values: 'accuracy', 'format', 'reasoning_steps', 'cosine', 'repetition_penalty'"
+            "help": "List of reward functions. Possible values: 'accuracy', 'format', 'reasoning_steps', 'cosine', 'repetition_penalty', 'length'"
         },
     )
     cosine_min_value_wrong: float = field(
@@ -175,6 +176,7 @@ def main(script_args, training_args, model_args):
             ngram_size=script_args.repetition_n_grams,
             max_penalty=script_args.repetition_max_penalty,
         ),
+        "length": len_reward,
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
