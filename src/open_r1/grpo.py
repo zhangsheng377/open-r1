@@ -159,7 +159,8 @@ def main(script_args, training_args, model_args):
 
     # Get reward functions
     REWARD_FUNCS_REGISTRY = {
-        "accuracy": my_accuracy_reward,
+        "accuracy": accuracy_reward,
+        # "accuracy": my_accuracy_reward,
         "format": format_reward,
         # "reasoning_steps": reasoning_steps_reward,
         "cosine": my_get_cosine_scaled_reward(

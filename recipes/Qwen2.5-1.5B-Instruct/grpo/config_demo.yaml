@@ -6,12 +6,12 @@ attn_implementation: flash_attention_2
 use_peft: true
 lora_r: 64
 lora_alpha: 128
-lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+lora_target_modules: [ q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj ]
 
 # Data training arguments
 dataset_name: data/NuminaMath-TIR/data
 dataset_configs:
-- all
+  - all
 # Num processes is less by 1 as vLLM is using 1 GPU
 num_processes: 1
 system_prompt: "You are a helpful AI Assistant that provides well-reasoned and detailed responses. You first think about the reasoning process as an internal monologue and then provide the user with the answer. Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
@@ -46,19 +46,19 @@ per_device_eval_batch_size: 2
 per_device_train_batch_size: 2
 #reward_funcs: [accuracy, format, reasoning_steps, cosine, repetition_penalty, length]
 reward_funcs:
-- accuracy
-- format
-- length
+  - accuracy
+  - format
+  - length
 reward_weights:
-- 1.0
-- 1.0
-- 1.0
+  - 1.0
+  - 1.0
+  - 1.0
 push_to_hub: false
 report_to:
-- wandb
+  - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: 自定义length_reward+no_warmup
+run_name: length与accuracy奖励函数解耦
 save_strategy: "no"
 save_total_limit: 1
 seed: 42

@@ -11,8 +11,6 @@ import wandb
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-CONTENT_RECORDS = []
-
 
 def extract_answer_from_output(output):
     # 使用 re.finditer() 查找所有匹配项
@@ -41,16 +39,22 @@ def compute_cosine_similarity(text1, text2):
         return 0
 
 
-def reward_function(model_output, label, similarity_threshold=0.8):
+def accuracy_reward_function(model_output, label, similarity_threshold=0.8):
     model_answer = extract_answer_from_output(model_output)
     reference_answer = extract_answer_from_label(label)
     if model_answer and reference_answer:
         # 检查模型输出是否包含参考答案
         if reference_answer in model_answer:
+            # print(
+            #     f"accuracy_reward_function : model_answer : {model_answer} reference_answer : {reference_answer} score : 1")
             return 1  # 正奖励
         similarity = compute_cosine_similarity(model_answer, reference_answer)
+        # print(
+        #     f"accuracy_reward_function : model_answer : {model_answer} reference_answer : {reference_answer} similarity : {similarity}")
         if similarity >= similarity_threshold:
             return 1  # 正奖励
+        return similarity
+    # print(f"accuracy_reward_function : model_answer : {model_answer} reference_answer : {reference_answer} score : 0")
     return 0
 
 
@@ -58,11 +62,8 @@ def my_accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
-    print(f"accuracy_reward contents : {contents}")
-    CONTENT_RECORDS.append(contents[0] if contents else '')
-    wandb.log({"contents": CONTENT_RECORDS, })
     for content, sol in zip(contents, solution):
-        reward = reward_function(model_output=content, label=sol)
+        reward = accuracy_reward_function(model_output=content, label=sol)
         rewards.append(reward)
     return rewards
 
@@ -71,10 +72,6 @@ def accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
-    print(f"accuracy_reward contents : {contents}")
-    wandb.log({
-        "contents": contents[0] if contents else '',
-    })
     for content, sol in zip(contents, solution):
         gold_parsed = parse(
             sol,
@@ -108,6 +105,8 @@ def accuracy_reward(completions, solution, **kwargs):
             # If the gold solution is not parseable, we reward 1 to skip this example
             reward = 1.0
             print("Failed to parse gold solution: ", sol)
+        # print(f"accuracy_reward : content : {content} sol : {sol} reward : {reward}")
+        # print(f"accuracy_reward : content : {content} gold_parsed : {gold_parsed} reward : {reward}")
         rewards.append(reward)
 
     return rewards
@@ -212,7 +211,7 @@ def len_reward(completions: list[Dict[str, str]], solutions: list[str], **kwargs
 
 
 def get_my_length_reward(
-        target_len: int = 768,
+        target_len: int = 640,
 ):
     def my_length_reward(completions, solution, **kwargs):
         contents = [completion[0]["content"] for completion in completions]
@@ -221,17 +220,18 @@ def get_my_length_reward(
         for content, sol in zip(contents, solution):
             gen_len = len(content)
             progress = gen_len / target_len if gen_len < target_len else 1.0
-            is_correct = reward_function(model_output=content, label=sol)
+            # is_correct = accuracy_reward_function(model_output=content, label=sol)
 
             x = progress
             # reward = x * (x * (x - 3) + 3)
             # reward = x * (2 - x)
-            reward = (math.cos(x * math.pi) + 1) / 2
-            if not is_correct:
-                reward = -reward
-
-            if not is_correct:
-                reward = reward / 2 - 1
+            # reward = (math.cos(x * math.pi) + 1) / 2
+            reward = 1 - (math.cos(x * math.pi) + 1) / 2
+            # if not is_correct:
+            #     reward = -reward
+            #
+            # if not is_correct:
+            #     reward = reward / 2 - 1
 
             rewards.append(float(reward))
         return rewards
@@ -267,7 +267,7 @@ def my_get_cosine_scaled_reward(
         rewards = []
 
         for content, sol in zip(contents, solution):
-            is_correct = reward_function(model_output=content, label=sol)
+            is_correct = accuracy_reward_function(model_output=content, label=sol)
             gen_len = len(content)
 
             # Apply cosine scaling based on length
