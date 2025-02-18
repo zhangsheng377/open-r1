@@ -39,7 +39,8 @@ from open_r1.rewards import (
     len_reward,
     reasoning_steps_reward,
     my_accuracy_reward,
-    my_get_cosine_scaled_reward, my_length_reward,
+    my_get_cosine_scaled_reward,
+    get_my_length_reward,
 )
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
@@ -165,6 +166,7 @@ def main(script_args, training_args, model_args):
 
     # Load the dataset
     dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+    print(dataset)
 
     # Get reward functions
     REWARD_FUNCS_REGISTRY = {
@@ -183,7 +185,7 @@ def main(script_args, training_args, model_args):
             max_penalty=script_args.repetition_max_penalty,
         ),
         # "length": len_reward,
-        "length": my_length_reward(target_len=script_args.target_len),
+        "length": get_my_length_reward(target_len=script_args.target_len),
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 

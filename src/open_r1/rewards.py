@@ -211,29 +211,32 @@ def len_reward(completions: list[Dict[str, str]], solutions: list[str], **kwargs
     return rewards
 
 
-def my_length_reward(
+def get_my_length_reward(
         target_len: int = 768,
 ):
-    def _length_reward(completions, solution, **kwargs):
+    def my_length_reward(completions, solution, **kwargs):
         contents = [completion[0]["content"] for completion in completions]
         rewards = []
 
         for content, sol in zip(contents, solution):
             gen_len = len(content)
             progress = gen_len / target_len if gen_len < target_len else 1.0
+            is_correct = reward_function(model_output=content, label=sol)
 
             x = progress
             # reward = x * (x * (x - 3) + 3)
-            reward = x * (2 - x)
+            # reward = x * (2 - x)
+            reward = (math.cos(x * math.pi) + 1) / 2
+            if not is_correct:
+                reward = -reward
 
-            is_correct = reward_function(model_output=content, label=sol)
             if not is_correct:
                 reward = reward / 2 - 1
 
             rewards.append(float(reward))
         return rewards
 
-    return _length_reward
+    return my_length_reward
 
 
 def my_get_cosine_scaled_reward(
