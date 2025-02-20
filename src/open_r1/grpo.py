@@ -33,6 +33,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from open_r1.configs import GRPOConfig
 from open_r1.rewards import (
     accuracy_reward,
+    code_reward,
     format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
@@ -176,6 +177,7 @@ def main(script_args, training_args, model_args):
         ),
         # "length": len_reward,
         "length": get_my_length_reward(target_len=script_args.target_len),
+        "code": code_reward,
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
