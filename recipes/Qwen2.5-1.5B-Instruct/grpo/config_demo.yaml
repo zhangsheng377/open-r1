@@ -58,7 +58,7 @@ report_to:
   - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: length与accuracy奖励函数解耦
+run_name: ref_model_accuracy奖励函数与x*x_length_reward
 save_strategy: "no"
 save_total_limit: 1
 seed: 42

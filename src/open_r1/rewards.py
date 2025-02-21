@@ -77,6 +77,43 @@ def my_accuracy_reward(completions, solution, **kwargs):
     return rewards
 
 
+def my_ref_model_accuracy_reward(completions, solution, **kwargs):
+    ref_model_inference_func = kwargs["ref_model_inference_func"]
+    PROMPT = """你是一个大模型回答标注员，你需要根据[参考答案]去给大模型的[模型回答]打分，打分范围为0-10，只需输出数字即可，不要有其他任何文字。
+
+
+
+
+<参考答案>
+{sol}
+</参考答案>
+
+
+
+
+<模型回答>
+{completion}
+</模型回答>
+
+
+
+
+你只需要给出0-10的数字即可，不要有其他多余描述。"""
+    contents = [completion[0]["content"] for completion in completions]
+    input_texts = [PROMPT.format(sol=sol, completion=content) for content, sol in zip(contents, solution)]
+    scores = ref_model_inference_func(input_texts)
+    print(scores)
+    rewards = []
+    for score in scores:
+        try:
+            reward = float(score) / 10.0
+        except Exception as e:
+            print(e)
+            reward = 0
+        rewards.append(reward)
+    return rewards
+
+
 def accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
@@ -235,7 +272,8 @@ def get_my_length_reward(
             # reward = x * (x * (x - 3) + 3)
             # reward = x * (2 - x)
             # reward = (math.cos(x * math.pi) + 1) / 2
-            reward = 1 - (math.cos(x * math.pi) + 1) / 2
+            # reward = 1 - (math.cos(x * math.pi) + 1) / 2
+            reward = x * x
             # if not is_correct:
             #     reward = -reward
             #

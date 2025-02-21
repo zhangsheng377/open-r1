@@ -42,6 +42,7 @@ from open_r1.rewards import (
     my_accuracy_reward,
     my_get_cosine_scaled_reward,
     get_my_length_reward,
+    my_ref_model_accuracy_reward,
 )
 from open_r1.utils import get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
@@ -160,8 +161,9 @@ def main(script_args, training_args, model_args):
 
     # Get reward functions
     REWARD_FUNCS_REGISTRY = {
-        "accuracy": accuracy_reward,
+        # "accuracy": accuracy_reward,
         # "accuracy": my_accuracy_reward,
+        "accuracy": my_ref_model_accuracy_reward,
         "format": format_reward,
         # "reasoning_steps": reasoning_steps_reward,
         "cosine": my_get_cosine_scaled_reward(
