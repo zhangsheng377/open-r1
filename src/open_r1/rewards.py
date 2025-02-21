@@ -102,15 +102,19 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
     contents = [completion[0]["content"] for completion in completions]
     input_texts = [PROMPT.format(sol=sol, completion=content) for content, sol in zip(contents, solution)]
     scores = ref_model_inference_func(input_texts)
-    print(scores)
     rewards = []
     for score in scores:
         try:
-            reward = float(score) / 10.0
+            reward = float(score)
         except Exception as e:
-            print(e)
-            reward = 0
-        rewards.append(reward)
+            match = re.search(r'\d+', score)
+            if match:
+                reward = float(match.group(0))  # 返回匹配到的第一个数字
+            else:
+                print(f"!!! score")
+                reward = 0
+        rewards.append(reward / 10.0)
+    print(f"my_ref_model_accuracy_reward : rewards : {rewards}")
     return rewards
 
 

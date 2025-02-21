@@ -1,5 +1,5 @@
 # Model arguments
-model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B
+model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B-Instruct
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
@@ -53,6 +53,7 @@ reward_weights:
   - 1.0
   - 1.0
   - 1.0
+target_len: 768
 push_to_hub: false
 report_to:
   - wandb
