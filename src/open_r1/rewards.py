@@ -80,8 +80,14 @@ def my_accuracy_reward(completions, solution, **kwargs):
 
 
 def my_ref_model_accuracy_reward(completions, solution, **kwargs):
-    ref_model_inference_func = kwargs["ref_model_inference_func"]
-    PROMPT = """你是一个大模型回答标注员，你需要根据[参考答案]去给大模型的[模型回答]打分，打分范围为0-10，只需输出数字即可，不要有其他任何文字。
+    PROMPT = """你是一个大模型回答标注员，你需要根据[问题]、[参考答案]去给大模型的[模型回答]打分，而且只需要关注最后的答案是否正确即可，不用关心答案前的推理过程。打分范围为0-10，只需输出数字即可，不要有其他任何文字。
+
+
+
+
+[问题]
+{question}
+[/问题]
 
 
 
@@ -101,18 +107,21 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 
 你只需要给出0-10的数字即可，不要有其他多余描述。"""
+    ref_model_inference_func = kwargs["ref_model_inference_func"]
+    problems = kwargs["problem"]
     contents = [completion[0]["content"] for completion in completions]
     contents = [extract_answer_from_output(content) for content in contents]
     # solutions = [extract_answer_from_output(sol) for sol in solution]
     solutions = [extract_answer_from_label(sol) for sol in solution]
+    print(f"problem : {problems[0]}")
     print(f"content : {contents[0]}")
     print(f"sol : {solutions[0]}")
     if not solutions[0] or not solutions[0].strip():
         print(f"ERROR!!! sol : {solutions[0]}")
-    input_texts = [PROMPT.format(sol=sol, completion=content) for content, sol in zip(contents, solutions)]
+    input_texts = [PROMPT.format(question=problem, sol=sol, completion=content) for problem, content, sol in zip(problems, contents, solutions)]
     scores = ref_model_inference_func(input_texts)
     rewards = []
-    for score in scores:
+    for i, score in enumerate(scores):
         try:
             reward = float(score)
         except Exception as e:
@@ -120,7 +129,7 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
             if match:
                 reward = float(match.group(0))  # 返回匹配到的第一个数字
             else:
-                print(f"!!! ref_model_inference_func return error!!! score : {score}")
+                print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solutions[i]}")
                 reward = 0
         rewards.append(reward / 10.0)
     print(f"my_ref_model_accuracy_reward : rewards : {rewards}")
