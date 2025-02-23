@@ -5,6 +5,7 @@ import math
 import re
 from typing import Dict
 
+import regex
 from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
 import wandb
@@ -27,16 +28,17 @@ def extract_answer_from_output(output):
     if matches:
         # 获取最后一个匹配项的内容
         return matches[-1].group(1).strip()  # group(1) 是捕获的第一个组
-    return None
+    return ""
 
 
 def extract_answer_from_label(label):
-    # 使用 re.finditer() 查找所有匹配项
-    matches = list(re.finditer(r'\\boxed{(.*?)}', label, re.DOTALL))
+    pattern = r'\\boxed\{((?:[^{}]|(?R))*)\}'
+    # 查找所有匹配的 \box{...}
+    matches = regex.findall(pattern, label)
     if matches:
         # 获取最后一个匹配项的内容
-        return matches[-1].group(1).strip()  # group(1) 是捕获的第一个组
-    return None
+        return matches[-1]
+    return ""
 
 
 def compute_cosine_similarity(text1, text2):
@@ -100,7 +102,14 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 你只需要给出0-10的数字即可，不要有其他多余描述。"""
     contents = [completion[0]["content"] for completion in completions]
-    input_texts = [PROMPT.format(sol=sol, completion=content) for content, sol in zip(contents, solution)]
+    contents = [extract_answer_from_output(content) for content in contents]
+    # solutions = [extract_answer_from_output(sol) for sol in solution]
+    solutions = [extract_answer_from_label(sol) for sol in solution]
+    print(f"content : {contents[0]}")
+    print(f"sol : {solutions[0]}")
+    if not solutions[0] or not solutions[0].strip():
+        print(f"ERROR!!! sol : {solutions[0]}")
+    input_texts = [PROMPT.format(sol=sol, completion=content) for content, sol in zip(contents, solutions)]
     scores = ref_model_inference_func(input_texts)
     rewards = []
     for score in scores:
@@ -111,7 +120,7 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
             if match:
                 reward = float(match.group(0))  # 返回匹配到的第一个数字
             else:
-                print(f"!!! score")
+                print(f"!!! ref_model_inference_func return error!!! score : {score}")
                 reward = 0
         rewards.append(reward / 10.0)
     print(f"my_ref_model_accuracy_reward : rewards : {rewards}")
