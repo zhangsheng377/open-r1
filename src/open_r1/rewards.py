@@ -14,7 +14,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from .utils import is_e2b_available
 
-
 if is_e2b_available():
     from dotenv import load_dotenv
     from e2b_code_interpreter import Sandbox
@@ -80,7 +79,7 @@ def my_accuracy_reward(completions, solution, **kwargs):
 
 
 def my_ref_model_accuracy_reward(completions, solution, **kwargs):
-    PROMPT = """你是一个大模型回答标注员，你需要根据[问题]、[参考答案]去给大模型的[模型回答]打分，而且只需要关注最后的答案是否正确即可，不用关心答案前的推理过程。打分范围为0-10，只需输出数字即可，不要有其他任何文字。
+    PROMPT = """你是一个大模型回答的评分员，你需要根据[问题]、[参考答案]去给大模型的[模型回答]评分，而且只需要关注最后的答案是否正确即可，不用关心答案前的推理过程。打分范围为0-10，正确为10分，错误为0分。只需输出数字即可，不要有其他任何文字。
 
 
 
@@ -106,19 +105,20 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 
 
-你只需要给出0-10的数字即可，不要有其他多余描述。"""
+请你不要回答问题，只需要对模型回答评分即可。请直接给出0-10的数字，不要有其他多余描述。"""
     ref_model_inference_func = kwargs["ref_model_inference_func"]
     problems = kwargs["problem"]
     contents = [completion[0]["content"] for completion in completions]
     contents = [extract_answer_from_output(content) for content in contents]
     # solutions = [extract_answer_from_output(sol) for sol in solution]
-    solutions = [extract_answer_from_label(sol) for sol in solution]
+    # solutions = [extract_answer_from_label(sol) for sol in solution]
     print(f"problem : {problems[0]}")
     print(f"content : {contents[0]}")
-    print(f"sol : {solutions[0]}")
-    if not solutions[0] or not solutions[0].strip():
-        print(f"ERROR!!! sol : {solutions[0]}")
-    input_texts = [PROMPT.format(question=problem, sol=sol, completion=content) for problem, content, sol in zip(problems, contents, solutions)]
+    print(f"sol : {solution[0]}")
+    if not solution[0] or not solution[0].strip():
+        print(f"ERROR!!! sol : {solution[0]}")
+    input_texts = [PROMPT.format(question=problem, sol=sol, completion=content) for problem, content, sol in
+                   zip(problems, contents, solution)]
     scores = ref_model_inference_func(input_texts)
     rewards = []
     for i, score in enumerate(scores):
@@ -129,9 +129,13 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
             if match:
                 reward = float(match.group(0))  # 返回匹配到的第一个数字
             else:
-                print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solutions[i]}")
+                print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solution[i]}")
                 reward = 0
-        rewards.append(reward / 10.0)
+        reward = reward / 10.0
+        if 0 > reward or 1 < reward:
+            print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solution[i]}")
+            reward = 0
+        rewards.append(reward)
     print(f"my_ref_model_accuracy_reward : rewards : {rewards}")
     return rewards
 
@@ -283,10 +287,11 @@ def get_my_length_reward(
 ):
     def my_length_reward(completions, solution, **kwargs):
         contents = [completion[0]["content"] for completion in completions]
+        completion_ids = kwargs["completion_ids"]
         rewards = []
 
-        for content, sol in zip(contents, solution):
-            gen_len = len(content)
+        for content, sol, completion_ids_ in zip(contents, solution, completion_ids):
+            gen_len = len(completion_ids_)
             progress = gen_len / target_len if gen_len < target_len else 1.0
             # is_correct = accuracy_reward_function(model_output=content, label=sol)
 

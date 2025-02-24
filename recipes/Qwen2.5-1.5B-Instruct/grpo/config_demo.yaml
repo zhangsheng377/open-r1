@@ -9,7 +9,7 @@ lora_alpha: 128
 lora_target_modules: [ q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj ]
 
 # Data training arguments
-dataset_name: data/NuminaMath-TIR/data
+dataset_name: /mnt/nfs/zsd_server/codes/open-r1/data/Chinese-DeepSeek-R1-Distill-data-110k_filter
 dataset_configs:
   - all
 # Num processes is less by 1 as vLLM is using 1 GPU
@@ -53,13 +53,13 @@ reward_weights:
   - 1.0
   - 1.0
   - 1.0
-target_len: 768
+target_len: 640
 push_to_hub: false
 report_to:
   - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: ref_model_accuracy奖励函数与x*x_length_reward
+run_name: 中文数据集+优化ref_model_prompt
 save_strategy: "no"
 save_total_limit: 1
 seed: 42
