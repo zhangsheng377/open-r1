@@ -9,23 +9,32 @@ from transformers import AutoTokenizer
 rich.traceback.install()
 
 TOKENIZER_PATH = "/mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B-Instruct"
-DATASET_PATH = "/mnt/nfs/zsd_server/codes/open-r1/data/Chinese-DeepSeek-R1-Distill-data-110k"
-FILTER_DATASET_PATH = "/mnt/nfs/zsd_server/codes/open-r1/data/Chinese-DeepSeek-R1-Distill-data-110k_filter"
+DATASET_PATH = "/mnt/nfs/zsd_server/codes/open-r1/data/chinese-sft-stem-zh-hans"
+FILTER_DATASET_PATH = "/mnt/nfs/zsd_server/codes/open-r1/data/chinese-sft-stem-zh-hans/filter"
 MAX_LENGTH = 640
+SYSTEM_PROMPT = "You are a helpful AI Assistant that provides well-reasoned and detailed responses. You first think about the reasoning process as an internal monologue and then provide the user with the answer. Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
 
 tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
 
-dataset = load_dataset(
-    "json",
-    data_dir=DATASET_PATH,
-    data_files="*.jsonl",
-)
+# dataset = load_dataset(
+#     "parquet",
+#     data_dir=DATASET_PATH,
+#     data_files="*.parquet",
+# )
+dataset = load_dataset(DATASET_PATH)
 print(dataset)
 
 
 # 定义过滤函数
 def filter_by_length(example):
-    return example["prompt_tokens_len"] + example["content_tokens_len"] < MAX_LENGTH
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": example['conversations'][0]['value']},
+        {"role": "assistant", "content": example['conversations'][1]['value']},
+    ]
+    chat_tokens = tokenizer.apply_chat_template(messages, add_generation_prompt=False, return_tensors="pt",
+                                                return_dict=True)
+    return chat_tokens['input_ids'].size(1) < MAX_LENGTH
 
 
 # 应用过滤
@@ -33,7 +42,7 @@ filtered_dataset = dataset.filter(filter_by_length)
 
 
 def process(example):
-    return {"problem": example["input"], "solution": example["content"]}
+    return {"problem": example['conversations'][0]['value'], "solution": example['conversations'][1]['value']}
 
 
 original_columns = filtered_dataset["train"].column_names

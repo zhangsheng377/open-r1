@@ -9,7 +9,7 @@ lora_alpha: 128
 lora_target_modules: [ q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj ]
 
 # Data training arguments
-dataset_name: /mnt/nfs/zsd_server/codes/open-r1/data/Chinese-DeepSeek-R1-Distill-data-110k_filter
+dataset_name: /mnt/nfs/zsd_server/codes/open-r1/data/chinese-sft-stem-zh-hans/filter
 dataset_configs:
   - all
 # Num processes is less by 1 as vLLM is using 1 GPU
@@ -55,7 +55,7 @@ reward_weights:
   - 1.0
   - 1.0
   - 1.0
-  - 2.0
+  - 4.0
   - 1.0
 target_len: 712
 push_to_hub: false
@@ -63,7 +63,7 @@ report_to:
   - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: 加长length+增加思考过程的reward
+run_name: base模型+用难数据集
 save_strategy: "no"
 save_total_limit: 1
 seed: 42
