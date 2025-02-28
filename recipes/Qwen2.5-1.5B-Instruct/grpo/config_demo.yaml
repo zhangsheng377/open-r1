@@ -1,5 +1,5 @@
 # Model arguments
-model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B-Instruct
+model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
