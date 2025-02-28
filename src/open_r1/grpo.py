@@ -44,6 +44,7 @@ from open_r1.rewards import (
     my_get_cosine_scaled_reward,
     get_my_length_reward,
     my_ref_model_accuracy_reward,
+    my_ref_model_reasoning_steps_reward,
 )
 from open_r1.utils import get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
@@ -176,6 +177,7 @@ def main(script_args, training_args, model_args):
         "accuracy": my_ref_model_accuracy_reward,
         "format": format_reward,
         # "reasoning_steps": reasoning_steps_reward,
+        "reasoning_steps": my_ref_model_reasoning_steps_reward,
         "cosine": my_get_cosine_scaled_reward(
             min_value_wrong=script_args.cosine_min_value_wrong,
             max_value_wrong=script_args.cosine_max_value_wrong,

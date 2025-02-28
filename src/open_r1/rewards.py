@@ -3,12 +3,12 @@
 import json
 import math
 import re
+from collections import deque
 from typing import Dict
 
 import regex
 from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
-import wandb
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -79,11 +79,12 @@ def my_accuracy_reward(completions, solution, **kwargs):
 
 
 def my_ref_model_accuracy_reward(completions, solution, **kwargs):
-    PROMPT = """你是一个大模型回答的评分员，你需要根据[问题]、[参考答案]去给大模型的[模型回答]评分，而且只需要关注最后的答案是否正确即可，不用关心答案前的推理过程。打分范围为0-10，正确为10分，错误为0分。只需输出数字即可，不要有其他任何文字。
+    PROMPT = """你是一个判别推理正确性的专家。
 
 
 
 
+# 问题
 [问题]
 {question}
 [/问题]
@@ -91,6 +92,7 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 
 
+# 参考答案
 <参考答案>
 {sol}
 </参考答案>
@@ -98,6 +100,7 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 
 
+# 模型回答
 <模型回答>
 {completion}
 </模型回答>
@@ -105,7 +108,8 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
 
 
 
-请你不要回答问题，只需要对模型回答评分即可。请直接给出0-10的数字，不要有其他多余描述。"""
+# 你的任务目标
+你的任务目标：根据给定的[问题]和[参考答案]，评估[模型回答]的正确性。请你不要回答问题，只需要关注[模型回答]最后的答案是否正确即可，不用关心答案前的推理过程。打分范围为0-10，正确为10分，错误为0分。请直接给出0-10的数字，且只需输出数字即可，不要有其他任何文字。"""
     ref_model_inference_func = kwargs["ref_model_inference_func"]
     problems = kwargs["problem"]
     contents = [completion[0]["content"] for completion in completions]
@@ -115,8 +119,6 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
     print(f"problem : {problems[0]}")
     print(f"content : {contents[0]}")
     print(f"sol : {solution[0]}")
-    if not solution[0] or not solution[0].strip():
-        print(f"ERROR!!! sol : {solution[0]}")
     input_texts = [PROMPT.format(question=problem, sol=sol, completion=content) for problem, content, sol in
                    zip(problems, contents, solution)]
     scores = ref_model_inference_func(input_texts)
@@ -129,11 +131,11 @@ def my_ref_model_accuracy_reward(completions, solution, **kwargs):
             if match:
                 reward = float(match.group(0))  # 返回匹配到的第一个数字
             else:
-                print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solution[i]}")
+                print(f"!!! ref_model_inference_func return error!!! score : {score} contents : {contents[i]}")
                 reward = 0
         reward = reward / 10.0
         if 0 > reward or 1 < reward:
-            print(f"!!! ref_model_inference_func return error!!! score : {score} solution : {solution[i]}")
+            print(f"!!! ref_model_inference_func reward error!!! score : {score}")
             reward = 0
         rewards.append(reward)
     print(f"my_ref_model_accuracy_reward : rewards : {rewards}")
@@ -190,6 +192,48 @@ def format_reward(completions, **kwargs):
     completion_contents = [completion[0]["content"] for completion in completions]
     matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
     return [1.0 if match else 0.0 for match in matches]
+
+
+def my_ref_model_reasoning_steps_reward(completions, **kwargs):
+    PROMPT = """你是一个判别推理过程性的专家。
+
+
+
+
+# 模型回答
+<模型回答>
+{completion}
+</模型回答>
+
+
+
+
+# 你的任务目标
+你的任务目标：评估[模型回答]的推理过程的好坏。一个理想的推理过程应该先分析、规划，再逐步分析，最后得出答案后还要再次检查，直到确认无误后再给出最后的回答。推理过程的关键在于有理有据，足够细致。你的打分范围为0-10，好为10分，坏为0分。请直接给出0-10的数字，且只需输出数字即可，不要有其他任何文字。"""
+    ref_model_inference_func = kwargs["ref_model_inference_func"]
+    contents = [completion[0]["content"] for completion in completions]
+
+    input_texts = [PROMPT.format(completion=content) for content in contents]
+    scores = ref_model_inference_func(input_texts)
+    rewards = []
+    for i, score in enumerate(scores):
+        try:
+            reward = float(score)
+        except Exception as e:
+            match = re.search(r'\d+', score)
+            if match:
+                reward = float(match.group(0))  # 返回匹配到的第一个数字
+            else:
+                print(
+                    f"!!! my_ref_model_reasoning_steps_reward return error!!! score : {score} contents : {contents[i]}")
+                reward = 0
+        reward = reward / 10.0
+        if 0 > reward or 1 < reward:
+            print(f"!!! my_ref_model_reasoning_steps_reward reward error!!! score : {score}")
+            reward = 0
+        rewards.append(reward)
+    print(f"my_ref_model_reasoning_steps_reward : rewards : {rewards}")
+    return rewards
 
 
 def reasoning_steps_reward(completions, **kwargs):
@@ -282,9 +326,29 @@ def len_reward(completions: list[Dict[str, str]], solution: list[str], **kwargs)
     return rewards
 
 
+class DynamicMeanDeque:
+    def __init__(self, maxlen):
+        self.queue = deque(maxlen=maxlen)
+        self.total = 0  # 维护累计和
+
+    def append(self, value):
+        if len(self.queue) == self.queue.maxlen:
+            # 如果队列已满，减去最早被移除的元素
+            self.total -= self.queue[0]
+        self.queue.append(value)
+        self.total += value
+
+    def mean(self):
+        if self.queue:
+            return self.total / len(self.queue)
+        return 0  # 如果队列为空，返回 0
+
+
 def get_my_length_reward(
         target_len: int = 640,
 ):
+    # dynamic_queue = DynamicMeanDeque(maxlen=100)
+
     def my_length_reward(completions, solution, **kwargs):
         contents = [completion[0]["content"] for completion in completions]
         completion_ids = kwargs["completion_ids"]
@@ -292,7 +356,11 @@ def get_my_length_reward(
 
         for content, sol, completion_ids_ in zip(contents, solution, completion_ids):
             gen_len = len(completion_ids_)
-            progress = gen_len / target_len if gen_len < target_len else 1.0
+            # dynamic_queue.append(gen_len)
+            # target_len_ = dynamic_queue.mean() * 2  # 一开始可能会振荡，后面就稳定了
+            # if target_len_ > target_len:
+            #     target_len_ = target_len
+            progress = gen_len / max(target_len, 1) if gen_len < target_len else 1.0
             # is_correct = accuracy_reward_function(model_output=content, label=sol)
 
             x = progress
@@ -300,7 +368,8 @@ def get_my_length_reward(
             # reward = x * (2 - x)
             # reward = (math.cos(x * math.pi) + 1) / 2
             # reward = 1 - (math.cos(x * math.pi) + 1) / 2
-            reward = x * x
+            # reward = x * x
+            reward = x
             # if not is_correct:
             #     reward = -reward
             #
