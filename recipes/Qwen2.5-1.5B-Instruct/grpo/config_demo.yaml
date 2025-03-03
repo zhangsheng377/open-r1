@@ -1,5 +1,5 @@
 # Model arguments
-model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B
+model_name_or_path: /mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B-Instruct
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
@@ -63,7 +63,7 @@ report_to:
   - wandb
 wandb_entity: bz-zhangshengdong
 wandb_project: OpenR1
-run_name: base模型+用难数据集
+run_name: instruct模型+用难数据集
 save_strategy: "no"
 save_total_limit: 1
 seed: 42
