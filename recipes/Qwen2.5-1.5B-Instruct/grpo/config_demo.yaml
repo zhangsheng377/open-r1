@@ -10,10 +10,6 @@ lora_target_modules: [ q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_
 
 # Data training arguments
 dataset_name: /mnt/nfs/zsd_server/codes/open-r1/data/chinese-sft-stem-zh-hans/filter
-dataset_configs:
-  - all
-# Num processes is less by 1 as vLLM is using 1 GPU
-num_processes: 1
 system_prompt: "You are a helpful AI Assistant that provides well-reasoned and detailed responses. You first think about the reasoning process as an internal monologue and then provide the user with the answer. Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
 
 # GRPO trainer config
