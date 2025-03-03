@@ -6,39 +6,22 @@ import torch
 from peft import get_peft_model, PeftModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from utils.chatbot.chatbot_local import ChatBot
+from utils.chatbot.chatbot import ChatBot
 
-# MODEL_PATH = '/mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B'
-MODEL_PATH = '/mnt/nfs/zsd_server/models/huggingface/Qwen2.5-7B-Instruct'
-LORA_PATH = '/mnt/nfs/zsd_server/codes/open-r1/output/Qwen2.5-7B-Open-R1-GRPO'
+MODEL_NAME = 'zhangsheng377/qwen2.5-7b-instruct-r1-merged'
 
 # query = r'''What is the coefficient of $x^2y^6$ in the expansion of $\left(\frac{3}{5}x-\frac{y}{2}\right)^8$? Express your answer as a common fraction.'''
 query = r'''$x^2y^6$ 在 $\left(\frac{3}{5}x-\frac{y}{2}\right)^8$ 的膨胀中的系数是多少？将您的答案表示为普通分数。'''
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_PATH,
-    torch_dtype=torch.float16,
-    device_map="auto",
-)
-model = PeftModel.from_pretrained(model, LORA_PATH)
-model = model.merge_and_unload()
-model.save_pretrained('/mnt/nfs/zsd_server/codes/open-r1/output/Qwen2.5-7B-Open-R1-GRPO_merged', safe_serialization=True)
+chatbot = ChatBot(model_name=MODEL_NAME)
 
-chatbot = ChatBot(model=model, tokenizer=tokenizer)
-
-SYSTEM_PROMPT = (
-    "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
-    "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
-    "<think> reasoning process here </think><answer> answer here </answer>"
-)
+SYSTEM_PROMPT = "You are a helpful AI Assistant that provides well-reasoned and detailed responses. You first think about the reasoning process as an internal monologue and then provide the user with the answer. Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
 # message = f"""You will be given a problem. Please reason step by step, and put your final answer within \\boxed{{}}:\n{query}"""
 message = [
     {"role": "system", "content": SYSTEM_PROMPT},
     {"role": "user", "content": query},
 ]
-for token in chatbot.chat(messages=message, stream=True, skip_special_tokens=False):
+for token in chatbot.chat(messages=message, stream=True):
     print(token, end='', flush=True)
     # sleep(0.1)
 print('\n')
